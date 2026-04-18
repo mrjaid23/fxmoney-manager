@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX Risk Desk</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --panel: #111418;
+    --border: #1e2329;
+    --border-light: #2b3139;
+    --text: #e8eaed;
+    --muted: #5f6b7a;
+    --accent: #f0b429;
+    --green: #00c896;
+    --red: #ff4f5e;
+    --blue: #4ea8de;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* NOISE TEXTURE */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .logo span {
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    letter-spacing: 4px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    padding: 8px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 500;
+  }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; gap: 16px; }
+  }
+
+  .grid-full { grid-column: 1 / -1; }
+
+  /* PANEL */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .panel-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* FORM ELEMENTS */
+  .field {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-light);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: #111418; }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* DIRECTION TOGGLE */
+  .dir-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .dir-btn {
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-light);
+    background: var(--bg);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    color: var(--muted);
+  }
+
+  .dir-btn.buy.active {
+    background: rgba(0,200,150,0.12);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .dir-btn.sell.active {
+    background: rgba(255,79,94,0.12);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  /* CALCULATE BUTTON */
+  .calc-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .calc-btn:hover { opacity: 0.9; }
+  .calc-btn:active { transform: scale(0.99); }
+
+  /* RESULTS */
+  .results-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .result-row:last-child { border-bottom: none; }
+
+  .result-label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .result-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .result-value.green { color: var(--green); }
+  .result-value.red { color: var(--red); }
+  .result-value.accent { color: var(--accent); font-size: 22px; }
+
+  /* RR BAR */
+  .rr-bar-wrap {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .rr-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .rr-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .rr-loss { background: var(--red); }
+  .rr-profit { background: var(--green); }
+
+  .rr-ratio {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--text);
+    margin-top: 6px;
+    letter-spacing: 2px;
+  }
+
+  /* PLACEHOLDER */
+  .empty-state {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--muted);
+  }
+
+  .empty-state svg { opacity: 0.2; margin-bottom: 12px; }
+
+  .empty-state p {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* SECTION */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* PAIR SEARCH */
+  .pair-search-wrap { position: relative; }
+
+  .pair-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: #1a1f26;
+    border: 1px solid var(--border-light);
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+  }
+
+  .pair-suggestions.open { display: block; }
+
+  .pair-opt {
+    padding: 9px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .pair-opt:hover { background: var(--border); }
+  .pair-opt .pair-type { font-size: 10px; color: var(--muted); }
+
+  /* TICKER */
+  .live-ticker {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 24px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .live-ticker::-webkit-scrollbar { display: none; }
+
+  .tick-item {
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+    min-width: 80px;
+  }
+
+  .tick-pair {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+
+  .tick-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .tick-chg { font-size: 10px; }
+  .tick-chg.up { color: var(--green); }
+  .tick-chg.dn { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <span>FX RISK DESK</span>
+      MONEY MANAGER
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+      <div id="rates-badge" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted)">○ LOADING RATES...</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setMode('risk')">Risk Calc</button>
+        <button class="mode-btn" onclick="setMode('profit')">Profit Target</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ───────── MODE 1: RISK CALCULATOR ───────── -->
+  <div id="mode-risk" class="section active">
+    <div class="grid">
+
+      <!-- LEFT: INPUTS -->
+      <div>
+        <div class="panel">
+          <div class="panel-title">Trade Setup</div>
+
+          <div class="field">
+            <label>Instrument</label>
+            <div class="pair-search-wrap">
+              <input type="text" id="pair-input" placeholder="e.g. EURUSD, XAUUSD, US30..." autocomplete="off" oninput="filterPairs(this.value)" onblur="setTimeout(()=>closeSuggestions(),150)">
+              <div class="pair-suggestions" id="pair-suggestions"></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Direction</label>
+            <div class="dir-toggle">
+              <button class="dir-btn buy active" id="btn-buy" onclick="setDir('buy')">▲ BUY</button>
+              <button class="dir-btn sell" id="btn-sell" onclick="setDir('sell')">▼ SELL</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Entry Price</label>
+            <input type="number" id="entry" placeholder="0.00000" step="any" inputmode="decimal">
+          </div>
+
+          <div class="input-row">
+            <div class="field">
+              <label>Stop Loss</label>
+              <input type="number" id="sl" placeholder="0.00000" step="any" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Take Profit</label>
+              <input type="number" id="tp" placeholder="0.00000" step="any" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="input-row">
+            <div class="field">
+              <label>Account Balance ($)</label>
+              <input type="text" id="balance" placeholder="10,000" inputmode="decimal" oninput="fmtBalInput(this)" onkeydown="balKeydown(event,this)">
+            </div>
+            <div class="field">
+              <label>Risk (%)</label>
+              <input type="number" id="risk-pct" placeholder="1" step="0.1" max="10" inputmode="decimal">
+            </div>
+          </div>
+
+          <button class="calc-btn" onclick="calcRisk()">CALCULATE</button>
+        </div>
+      </div>
+
+      <!-- RIGHT: RESULTS -->
+      <div>
+        <div class="results-panel">
+          <div class="panel-title">Result</div>
+          <div id="risk-results">
+            <div class="empty-state">
+              <svg width="40" height="40" fill="none" stroke="#5f6b7a" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              <p>Fill in your trade details</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ───────── MODE 2: PROFIT TARGET ───────── -->
+  <div id="mode-profit" class="section">
+    <div class="grid">
+
+      <div>
+        <div class="panel">
+          <div class="panel-title">Profit Target Setup</div>
+
+          <div class="field">
+            <label>Instrument</label>
+            <div class="pair-search-wrap">
+              <input type="text" id="pair-input2" placeholder="e.g. EURUSD, XAUUSD..." autocomplete="off" oninput="filterPairs2(this.value)" onblur="setTimeout(()=>closeSuggestions2(),150)">
+              <div class="pair-suggestions" id="pair-suggestions2"></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Direction</label>
+            <div class="dir-toggle">
+              <button class="dir-btn buy active" id="btn-buy2" onclick="setDir2('buy')">▲ BUY</button>
+              <button class="dir-btn sell" id="btn-sell2" onclick="setDir2('sell')">▼ SELL</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Entry Price</label>
+            <input type="number" id="entry2" placeholder="0.00000" step="any" inputmode="decimal">
+          </div>
+
+          <div class="input-row">
+            <div class="field">
+              <label>Stop Loss</label>
+              <input type="number" id="sl2" placeholder="0.00000" step="any" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Take Profit</label>
+              <input type="number" id="tp2" placeholder="0.00000" step="any" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Account Balance ($)</label>
+            <input type="text" id="balance2" placeholder="10,000" inputmode="decimal" oninput="fmtBalInput(this)" onkeydown="balKeydown(event,this)">
+          </div>
+
+          <div class="input-row">
+            <div class="field">
+              <label>Target Profit ($)</label>
+              <input type="number" id="target-profit" placeholder="500" step="any" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>Max Loss ($)</label>
+              <input type="number" id="max-loss" placeholder="200" step="any" inputmode="decimal">
+            </div>
+          </div>
+
+          <button class="calc-btn" onclick="calcProfit()">CALCULATE</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="results-panel">
+          <div class="panel-title">Result</div>
+          <div id="profit-results">
+            <div class="empty-state">
+              <svg width="40" height="40" fill="none" stroke="#5f6b7a" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <p>Set your profit target</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  LIVE RATE ENGINE
+//  - Fetches real USD-based exchange rates from frankfurter.dev (free, no key)
+//  - Used to compute ACCURATE pip values for cross pairs at runtime
+//  - Refreshes every 5 minutes
+//  - Falls back to hardcoded estimates if API is unavailable
+//
+//  HOW PIP VALUE WORKS (with live rates):
+//
+//  USD-quoted pairs (EURUSD, GBPUSD, XAUUSD):
+//    pipValue = pip × contract                        ← exact, no live rate needed
+//
+//  USD-base pairs (USDJPY, USDCHF, USDCAD):
+//    pipValue = (pip × contract) / entryPrice         ← exact using user's entry price
+//
+//  JPY crosses (EURJPY, GBPJPY…):
+//    pipValue = (pip × contract) / entryPrice         ← exact using user's entry price
+//    (same formula — entry IS the JPY rate)
+//
+//  Non-USD crosses (EURGBP, GBPAUD, AUDCAD…):
+//    pipValue = pip × contract × liveQuoteCurrToUSD   ← needs live rate for quote CCY
+//    e.g. EURGBP: pip=0.0001, contract=100000, live GBP/USD=1.2730
+//    → pipValue = 0.0001 × 100000 × 1.2730 = $12.73/pip/lot  ✓ (updates live)
+//
+//  Metals (XAUUSD, XAGUSD…):
+//    pipValue = pip × contract                        ← exact, USD-denominated
+//
+//  Indices & Energy:
+//    pipValue = stored as fixed (broker contract spec) ← broker-dependent
+// ══════════════════════════════════════════════════════════════════
+
+// Live FX rates cache — maps currency code → USD value (e.g. GBP → 1.27)
+let liveRates = {};
+let ratesLastFetched = 0;
+let ratesStatus = 'loading'; // 'loading' | 'live' | 'fallback'
+
+// Fallback rates (used if API unavailable)
+const FALLBACK_RATES = {
+  USD:1.0000, EUR:1.0800, GBP:1.2730, AUD:0.6520, NZD:0.6050,
+  CAD:0.7380, CHF:1.1100, JPY:0.00667, NOK:0.0940, SEK:0.0950,
+  DKK:0.1450, PLN:0.2500, HUF:0.00280,CZK:0.0440, TRY:0.0310,
+  ZAR:0.0540, SGD:0.7400, HKD:0.1280, MXN:0.0580, THB:0.0286,
+  INR:0.0120, CNH:0.1380, CNY:0.1380, COP:0.000245,CLP:0.00110,
+  RON:0.2200, RUB:0.0110, ILS:0.2730, BRL:0.1960, AED:0.2722,
+  SAR:0.2667, KWD:3.2500, QAR:0.2747, BHD:2.6596, NGN:0.000615,
+  KES:0.0077, GHS:0.0620, EGP:0.0203,
+};
+
+async function fetchLiveRates() {
+  try {
+    // Frankfurter: free, no key, ECB-sourced rates, base=USD
+    // Returns all major fiat currencies vs USD in one call
+    const res = await fetch('https://api.frankfurter.dev/v2/latest?base=USD', {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    // data.rates = { EUR: 0.925, GBP: 0.786, ... } (how many units of X per 1 USD)
+    // We need: how many USD per 1 unit of X → invert
+    liveRates = { USD: 1.0 };
+    for (const [ccy, ratePerUSD] of Object.entries(data.rates)) {
+      liveRates[ccy] = 1 / ratePerUSD; // USD value of 1 unit of this currency
+    }
+    ratesLastFetched = Date.now();
+    ratesStatus = 'live';
+    updateRatesBadge();
+    console.log('[FX Risk Desk] Live rates fetched:', Object.keys(liveRates).length, 'currencies');
+  } catch (err) {
+    console.warn('[FX Risk Desk] Rates API failed, using fallback:', err.message);
+    if (Object.keys(liveRates).length === 0) {
+      liveRates = { ...FALLBACK_RATES };
+      ratesStatus = 'fallback';
+    }
+    updateRatesBadge();
+  }
+}
+
+function updateRatesBadge() {
+  const badge = document.getElementById('rates-badge');
+  if (!badge) return;
+  if (ratesStatus === 'live') {
+    const mins = Math.floor((Date.now() - ratesLastFetched) / 60000);
+    badge.textContent = mins < 1 ? '● LIVE RATES' : `● RATES ${mins}m ago`;
+    badge.style.color = 'var(--green)';
+  } else if (ratesStatus === 'fallback') {
+    badge.textContent = '● ESTIMATED RATES';
+    badge.style.color = 'var(--accent)';
+  } else {
+    badge.textContent = '○ LOADING RATES...';
+    badge.style.color = 'var(--muted)';
+  }
+}
+
+// Get USD value of 1 unit of a currency using live rates
+function toUSD(currency) {
+  return liveRates[currency] ?? FALLBACK_RATES[currency] ?? 1.0;
+}
+
+// Refresh every 5 minutes
+fetchLiveRates();
+setInterval(() => {
+  fetchLiveRates();
+  updateRatesBadge(); // update "X mins ago" text
+}, 5 * 60 * 1000);
+setInterval(updateRatesBadge, 60000); // update age text every minute
+
+// ══════════════════════════════════════════════════════════════════
+//  INSTRUMENT DATABASE
+//  quote     — the quote (second) currency of the pair
+//  usdBase   — USD is the BASE currency, or it's a JPY cross
+//              formula: (pip × contract) / entryPrice
+//  pipValue  — fixed $ value per pip per lot (metals, indices, energy)
+// ══════════════════════════════════════════════════════════════════
+const instruments = [
+
+  // ── FOREX MAJORS ──────────────────────────────────────────────
+  { sym:'EURUSD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'USD' },
+  { sym:'GBPUSD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'USD' },
+  { sym:'AUDUSD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'USD' },
+  { sym:'NZDUSD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'USD' },
+  { sym:'USDJPY', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'USDCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF', usdBase:true },
+  { sym:'USDCAD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CAD', usdBase:true },
+
+  // ── JPY CROSSES ───────────────────────────────────────────────
+  { sym:'EURJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'GBPJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'AUDJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'NZDJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'CADJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'CHFJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'SGDJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'NOKJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'SEKJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'ZARJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'TRYJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'MXNJPY',  pip:0.01,  contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+  { sym:'HKDJPY',  pip:0.001, contract:100000, type:'Forex', unit:'pips', quote:'JPY', usdBase:true },
+
+  // ── EUR CROSSES ───────────────────────────────────────────────
+  { sym:'EURGBP', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'GBP' },
+  { sym:'EURAUD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'AUD' },
+  { sym:'EURNZD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NZD' },
+  { sym:'EURCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF' },
+  { sym:'EURCAD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CAD' },
+  { sym:'EURNOK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NOK' },
+  { sym:'EURSEK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SEK' },
+  { sym:'EURDKK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'DKK' },
+  { sym:'EURPLN', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'PLN' },
+  { sym:'EURHUF', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'HUF' },
+  { sym:'EURCZK', pip:0.001,  contract:100000, type:'Forex', unit:'pips', quote:'CZK' },
+  { sym:'EURTRY', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'TRY' },
+  { sym:'EURZAR', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'ZAR' },
+  { sym:'EURSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD' },
+  { sym:'EURHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD' },
+  { sym:'EURMXN', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'MXN' },
+
+  // ── GBP CROSSES ───────────────────────────────────────────────
+  { sym:'GBPAUD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'AUD' },
+  { sym:'GBPNZD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NZD' },
+  { sym:'GBPCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF' },
+  { sym:'GBPCAD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CAD' },
+  { sym:'GBPNOK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NOK' },
+  { sym:'GBPSEK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SEK' },
+  { sym:'GBPSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD' },
+  { sym:'GBPZAR', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'ZAR' },
+  { sym:'GBPTRY', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'TRY' },
+  { sym:'GBPMXN', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'MXN' },
+  { sym:'GBPHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD' },
+
+  // ── AUD CROSSES ───────────────────────────────────────────────
+  { sym:'AUDNZD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NZD' },
+  { sym:'AUDCAD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CAD' },
+  { sym:'AUDCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF' },
+  { sym:'AUDSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD' },
+  { sym:'AUDHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD' },
+
+  // ── NZD CROSSES ───────────────────────────────────────────────
+  { sym:'NZDCAD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CAD' },
+  { sym:'NZDCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF' },
+  { sym:'NZDSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD' },
+  { sym:'NZDHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD' },
+
+  // ── CAD / CHF / Scandi CROSSES ────────────────────────────────
+  { sym:'CADCHF', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CHF' },
+  { sym:'CHFSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD' },
+  { sym:'NOKSEK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SEK' },
+  { sym:'NOKDKK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'DKK' },
+  { sym:'SEKDKK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'DKK' },
+  { sym:'SGDHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD' },
+
+  // ── USD EXOTICS ───────────────────────────────────────────────
+  { sym:'USDNOK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'NOK', usdBase:true },
+  { sym:'USDSEK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SEK', usdBase:true },
+  { sym:'USDDKK', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'DKK', usdBase:true },
+  { sym:'USDPLN', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'PLN', usdBase:true },
+  { sym:'USDHUF', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'HUF', usdBase:true },
+  { sym:'USDCZK', pip:0.001,  contract:100000, type:'Forex', unit:'pips', quote:'CZK', usdBase:true },
+  { sym:'USDTRY', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'TRY', usdBase:true },
+  { sym:'USDZAR', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'ZAR', usdBase:true },
+  { sym:'USDSGD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SGD', usdBase:true },
+  { sym:'USDHKD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'HKD', usdBase:true },
+  { sym:'USDMXN', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'MXN', usdBase:true },
+  { sym:'USDTHB', pip:0.001,  contract:100000, type:'Forex', unit:'pips', quote:'THB', usdBase:true },
+  { sym:'USDINR', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'INR', usdBase:true },
+  { sym:'USDCNH', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'CNH', usdBase:true },
+  { sym:'USDBRL', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'BRL', usdBase:true },
+  { sym:'USDAED', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'AED', usdBase:true },
+  { sym:'USDSAR', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'SAR', usdBase:true },
+  { sym:'USDNGN', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'NGN', usdBase:true },
+  { sym:'USDKES', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'KES', usdBase:true },
+  { sym:'USDEGP', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'EGP', usdBase:true },
+  { sym:'USDRUB', pip:0.01,   contract:100000, type:'Forex', unit:'pips', quote:'RUB', usdBase:true },
+  { sym:'USDBHD', pip:0.0001, contract:100000, type:'Forex', unit:'pips', quote:'BHD', usdBase:true },
+
+  // ── METALS ────────────────────────────────────────────────────
+  // Formula: pipValue = pip × contract (USD-quoted, exact)
+  { sym:'XAUUSD', pip:0.01,   contract:100,   type:'Metal',  unit:'pts', pipValue:1.00   }, // Gold 100oz
+  { sym:'XAGUSD', pip:0.001,  contract:5000,  type:'Metal',  unit:'pts', pipValue:5.00   }, // Silver 5000oz
+  { sym:'XPTUSD', pip:0.01,   contract:100,   type:'Metal',  unit:'pts', pipValue:1.00   }, // Platinum 100oz
+  { sym:'XPDUSD', pip:0.01,   contract:100,   type:'Metal',  unit:'pts', pipValue:1.00   }, // Palladium 100oz
+  { sym:'XCUUSD', pip:0.0001, contract:25000, type:'Metal',  unit:'pts', pipValue:2.50   }, // Copper 25000lbs
+
+  // ── INDICES ───────────────────────────────────────────────────
+  { sym:'US30',    pip:1,    type:'Index', unit:'pts', pipValue:1.00  }, // Dow Jones
+  { sym:'US500',   pip:0.1,  type:'Index', unit:'pts', pipValue:0.10  }, // S&P 500
+  { sym:'NAS100',  pip:0.1,  type:'Index', unit:'pts', pipValue:0.10  }, // Nasdaq 100
+  { sym:'UK100',   pip:1,    type:'Index', unit:'pts', pipValue:1.27  }, // FTSE 100 (GBP×1.27)
+  { sym:'GER40',   pip:1,    type:'Index', unit:'pts', pipValue:1.08  }, // DAX 40 (EUR×1.08)
+  { sym:'FRA40',   pip:1,    type:'Index', unit:'pts', pipValue:1.08  }, // CAC 40
+  { sym:'ESP35',   pip:1,    type:'Index', unit:'pts', pipValue:1.08  }, // IBEX 35
+  { sym:'EU50',    pip:1,    type:'Index', unit:'pts', pipValue:1.08  }, // Euro Stoxx 50
+  { sym:'JP225',   pip:1,    type:'Index', unit:'pts', pipValue:0.67  }, // Nikkei 225
+  { sym:'AUS200',  pip:1,    type:'Index', unit:'pts', pipValue:0.65  }, // ASX 200
+  { sym:'HK50',    pip:1,    type:'Index', unit:'pts', pipValue:0.13  }, // Hang Seng
+  { sym:'CHINA50', pip:1,    type:'Index', unit:'pts', pipValue:0.14  }, // China A50
+
+  // ── ENERGY ────────────────────────────────────────────────────
+  // 1 lot = 1000 barrels/MMBtu; pip=$0.01 → $10/pip/lot
+  { sym:'USOIL', pip:0.01, contract:1000,  type:'Energy', unit:'pts', pipValue:10.00 }, // WTI
+  { sym:'UKOIL', pip:0.01, contract:1000,  type:'Energy', unit:'pts', pipValue:10.00 }, // Brent
+  { sym:'NGAS',  pip:0.001,contract:10000, type:'Energy', unit:'pts', pipValue:10.00 }, // Natural Gas
+
+  // ── CRYPTO CFDs ───────────────────────────────────────────────
+  // pipValue = pip × contract (all USD-quoted, exact)
+  { sym:'BTCUSD',   pip:1,       contract:1,         type:'Crypto', unit:'pts', pipValue:1.00    },
+  { sym:'ETHUSD',   pip:0.01,    contract:1,         type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'XRPUSD',   pip:0.0001,  contract:1000,      type:'Crypto', unit:'pts', pipValue:0.10    },
+  { sym:'BNBUSD',   pip:0.01,    contract:1,         type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'SOLUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'ADAUSD',   pip:0.0001,  contract:1000,      type:'Crypto', unit:'pts', pipValue:0.10    },
+  { sym:'DOGEUSD',  pip:0.00001, contract:10000,     type:'Crypto', unit:'pts', pipValue:0.10    },
+  { sym:'DOTUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'MATICUSD', pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'LINKUSD',  pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'LTCUSD',   pip:0.01,    contract:1,         type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'BCHUSD',   pip:0.01,    contract:1,         type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'XLMUSD',   pip:0.00001, contract:10000,     type:'Crypto', unit:'pts', pipValue:0.10    },
+  { sym:'UNIUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'AVAXUSD',  pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'ATOMUSD',  pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'TRXUSD',   pip:0.00001, contract:10000,     type:'Crypto', unit:'pts', pipValue:0.10    },
+  { sym:'ETCUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'XMRUSD',   pip:0.01,    contract:1,         type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'EOSUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'ALGOUSD',  pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'FILUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'ICPUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'FTMUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'SANDUSD',  pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'MANAUSD',  pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'AXSUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'GRTUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'OPUSD',    pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'ARBUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'SUIUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'INJUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'LDOUSD',   pip:0.001,   contract:1,         type:'Crypto', unit:'pts', pipValue:0.001   },
+  { sym:'STXUSD',   pip:0.0001,  contract:100,       type:'Crypto', unit:'pts', pipValue:0.01    },
+  { sym:'PEPEUSD',  pip:0.0000001,contract:10000000, type:'Crypto', unit:'pts', pipValue:1.00    },
+  { sym:'SHIBUSD',  pip:0.0000001,contract:10000000, type:'Crypto', unit:'pts', pipValue:1.00    },
+];
+
+// ══════════════════════════════════════════════════════════════════
+//  CORE PIP VALUE FUNCTION — now uses live rates for crosses
+// ══════════════════════════════════════════════════════════════════
+function getPipValuePerLot(inst, entryPrice) {
+  // Fixed pipValue instruments (metals, indices, energy, crypto)
+  if (inst.pipValue !== undefined) return inst.pipValue;
+
+  const pipTimesContract = inst.pip * inst.contract;
+
+  // USD-quoted pairs: no conversion needed — already in USD
+  // e.g. EURUSD: 0.0001 × 100,000 = $10.00/pip/lot  ✓
+  if (inst.quote === 'USD') return pipTimesContract;
+
+  // USD-base pairs AND JPY crosses:
+  // pipValue = (pip × contract) / entryPrice
+  // e.g. USDJPY @ 150.00: (0.01 × 100,000) / 150.00 = $6.67/pip/lot ✓
+  // e.g. EURJPY @ 162.50: (0.01 × 100,000) / 162.50 = $6.15/pip/lot ✓
+  if (inst.usdBase) return pipTimesContract / entryPrice;
+
+  // Non-USD crosses: pipValue = pip × contract × liveQuoteCurrToUSD
+  // e.g. EURGBP @ 0.8600, live GBP/USD = 1.2730:
+  //   0.0001 × 100,000 × 1.2730 = $12.73/pip/lot  ✓ (was hardcoded 1.27 before)
+  // e.g. GBPJPY @ 195.00 — wait, that's JPY-quoted so handled above via usdBase
+  // e.g. GBPAUD @ 1.9100, live AUD/USD = 0.6520:
+  //   0.0001 × 100,000 × 0.6520 = $6.52/pip/lot  ✓
+  const quoteCurrToUSD = toUSD(inst.quote);
+  return pipTimesContract * quoteCurrToUSD;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  STATE & UI HELPERS
+// ══════════════════════════════════════════════════════════════════
+let dir1 = 'buy', dir2 = 'buy';
+let sel1 = null,  sel2 = null;
+
+function roundPips(raw) { return Math.round(raw * 1e8) / 1e8; }
+function brokerLot(raw) { return Math.floor(raw * 100) / 100; }
+function fmtLot(n) {
+  if (n >= 0.01) return n.toFixed(2);
+  if (n >= 0.001) return n.toFixed(3);
+  return n.toFixed(4);
+}
+function showErr(el, msg) {
+  el.innerHTML = `<div style="color:var(--red);font-family:'DM Mono',monospace;font-size:13px;padding:20px 0;text-align:center">${msg}</div>`;
+}
+
+// ── Mode toggle ───────────────────────────────────────────────────
+function setMode(m) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('mode-' + m).classList.add('active');
+  document.querySelectorAll('.mode-btn').forEach((b, i) =>
+    b.classList.toggle('active', (m==='risk'&&i===0)||(m==='profit'&&i===1))
+  );
+}
+
+// ── Direction buttons ─────────────────────────────────────────────
+function setDir(d) {
+  dir1 = d;
+  document.getElementById('btn-buy').classList.toggle('active', d==='buy');
+  document.getElementById('btn-sell').classList.toggle('active', d==='sell');
+}
+function setDir2(d) {
+  dir2 = d;
+  document.getElementById('btn-buy2').classList.toggle('active', d==='buy');
+  document.getElementById('btn-sell2').classList.toggle('active', d==='sell');
+}
+
+// ── Instrument search ─────────────────────────────────────────────
+function filterPairs(v) {
+  sel1 = null;
+  const box = document.getElementById('pair-suggestions');
+  const q = v.toUpperCase().trim();
+  if (!q) { box.classList.remove('open'); return; }
+  const matches = instruments.filter(i => i.sym.startsWith(q) || i.sym.includes(q)).slice(0,8);
+  if (!matches.length) { box.classList.remove('open'); return; }
+  box.innerHTML = matches.map(i =>
+    `<div class="pair-opt" onmousedown="selectPair1('${i.sym}')">${i.sym}<span class="pair-type">${i.type}</span></div>`
+  ).join('');
+  box.classList.add('open');
+}
+function selectPair1(sym) {
+  sel1 = instruments.find(i => i.sym === sym);
+  document.getElementById('pair-input').value = sym;
+  document.getElementById('pair-suggestions').classList.remove('open');
+}
+function closeSuggestions() { document.getElementById('pair-suggestions').classList.remove('open'); }
+
+function filterPairs2(v) {
+  sel2 = null;
+  const box = document.getElementById('pair-suggestions2');
+  const q = v.toUpperCase().trim();
+  if (!q) { box.classList.remove('open'); return; }
+  const matches = instruments.filter(i => i.sym.startsWith(q) || i.sym.includes(q)).slice(0,8);
+  if (!matches.length) { box.classList.remove('open'); return; }
+  box.innerHTML = matches.map(i =>
+    `<div class="pair-opt" onmousedown="selectPair2('${i.sym}')">${i.sym}<span class="pair-type">${i.type}</span></div>`
+  ).join('');
+  box.classList.add('open');
+}
+function selectPair2(sym) {
+  sel2 = instruments.find(i => i.sym === sym);
+  document.getElementById('pair-input2').value = sym;
+  document.getElementById('pair-suggestions2').classList.remove('open');
+}
+function closeSuggestions2() { document.getElementById('pair-suggestions2').classList.remove('open'); }
+
+// ── Balance input formatting ──────────────────────────────────────
+function fmtBalInput(el) {
+  const pos  = el.selectionStart;
+  const prev = el.value.length;
+  let raw = el.value.replace(/[^0-9.]/g, '');
+  const parts = raw.split('.');
+  if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  el.value = parts.length === 2 ? intPart + '.' + parts[1] : intPart;
+  const diff = el.value.length - prev;
+  el.setSelectionRange(pos + diff, pos + diff);
+}
+function balKeydown(e) {
+  const allowed = ['Backspace','Delete','ArrowLeft','ArrowRight','Tab','Home','End','Enter','.'];
+  if (allowed.includes(e.key) || (e.key>='0'&&e.key<='9')) return;
+  e.preventDefault();
+}
+function parseBal(id) { return parseFloat(document.getElementById(id).value.replace(/,/g,'')); }
+
+// ══════════════════════════════════════════════════════════════════
+//  RISK CALCULATOR
+// ══════════════════════════════════════════════════════════════════
+function calcRisk() {
+  const out     = document.getElementById('risk-results');
+  const inst    = sel1;
+  const entry   = parseFloat(document.getElementById('entry').value);
+  const sl      = parseFloat(document.getElementById('sl').value);
+  const tp      = parseFloat(document.getElementById('tp').value);
+  const bal     = parseBal('balance');
+  const riskPct = parseFloat(document.getElementById('risk-pct').value);
+
+  if (!inst)                           return showErr(out,'Select an instrument from the dropdown.');
+  if (isNaN(entry)||entry<=0)          return showErr(out,'Enter a valid entry price.');
+  if (isNaN(sl)||sl<=0)               return showErr(out,'Enter a valid stop loss price.');
+  if (isNaN(bal)||bal<=0)             return showErr(out,'Enter a valid account balance.');
+  if (isNaN(riskPct)||riskPct<=0)     return showErr(out,'Enter a valid risk percentage.');
+  if (riskPct>100)                     return showErr(out,'Risk % cannot exceed 100%.');
+  if (riskPct>10)                      return showErr(out,'⚠️ Risk above 10% is extremely dangerous.');
+
+  const hasTp = !isNaN(tp) && tp > 0;
+  if (dir1==='buy'  && sl>=entry) return showErr(out,'BUY: Stop Loss must be below entry price.');
+  if (dir1==='sell' && sl<=entry) return showErr(out,'SELL: Stop Loss must be above entry price.');
+  if (hasTp && dir1==='buy'  && tp<=entry) return showErr(out,'BUY: Take Profit must be above entry price.');
+  if (hasTp && dir1==='sell' && tp>=entry) return showErr(out,'SELL: Take Profit must be below entry price.');
+
+  const pipVal  = getPipValuePerLot(inst, entry);
+  const riskAmt = bal * riskPct / 100;
+  const slPips  = roundPips(Math.abs(entry - sl) / inst.pip);
+
+  if (slPips===0)  return showErr(out,'SL cannot equal entry price.');
+  if (pipVal<=0)   return showErr(out,'Could not compute pip value. Check entry price.');
+
+  const rawLot    = riskAmt / (slPips * pipVal);
+  const stdLot    = brokerLot(rawLot);
+  const actRisk   = stdLot * slPips * pipVal;
+  const isLive    = ratesStatus === 'live';
+  const isCross   = !inst.usdBase && inst.quote && inst.quote !== 'USD' && inst.pipValue === undefined;
+
+  let tpPips=0, potProfit=0, rr=0;
+  if (hasTp) {
+    tpPips    = roundPips(Math.abs(tp - entry) / inst.pip);
+    potProfit = tpPips * pipVal * stdLot;
+    rr        = tpPips / slPips;
+  }
+
+  const unit  = inst.unit || 'pips';
+  const rrLW  = rr>0 ? 100/(1+rr) : 50;
+  const rrPW  = 100-rrLW;
+
+  out.innerHTML = `
+    <div class="result-row">
+      <span class="result-label">Lot Size (Exact)</span>
+      <span class="result-value accent">${fmtLot(rawLot)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Broker Lot (Round ▼)</span>
+      <span class="result-value" style="color:var(--blue)">${stdLot.toFixed(2)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Actual Risk</span>
+      <span class="result-value red">−$${actRisk.toFixed(2)} (${((actRisk/bal)*100).toFixed(2)}%)</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">SL Distance</span>
+      <span class="result-value">${slPips.toFixed(1)} ${unit}</span>
+    </div>
+    ${hasTp ? `
+    <div class="result-row">
+      <span class="result-label">Potential Profit</span>
+      <span class="result-value green">+$${potProfit.toFixed(2)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">TP Distance</span>
+      <span class="result-value">${tpPips.toFixed(1)} ${unit}</span>
+    </div>
+    <div class="rr-bar-wrap">
+      <div class="rr-label">Risk / Reward Ratio</div>
+      <div class="rr-bar">
+        <div class="rr-loss"   style="width:${rrLW}%"></div>
+        <div class="rr-profit" style="width:${rrPW}%"></div>
+      </div>
+      <div class="rr-ratio">1 : ${rr.toFixed(2)}</div>
+    </div>` : ''}
+    <div class="result-row" style="margin-top:8px">
+      <span class="result-label">Pip Value / Lot</span>
+      <span class="result-value">$${pipVal.toFixed(4)}${isCross ? ` <span style="font-size:10px;color:${isLive?'var(--green)':'var(--accent)'}">${isLive?'● live':'● est.'}</span>` : ''}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Balance</span>
+      <span class="result-value">$${bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PROFIT TARGET CALCULATOR
+// ══════════════════════════════════════════════════════════════════
+function calcProfit() {
+  const out          = document.getElementById('profit-results');
+  const inst         = sel2;
+  const entry        = parseFloat(document.getElementById('entry2').value);
+  const sl           = parseFloat(document.getElementById('sl2').value);
+  const tp           = parseFloat(document.getElementById('tp2').value);
+  const bal          = parseBal('balance2');
+  const targetProfit = parseFloat(document.getElementById('target-profit').value);
+  const maxLoss      = parseFloat(document.getElementById('max-loss').value);
+
+  if (!inst)                                 return showErr(out,'Select an instrument from the dropdown.');
+  if (isNaN(entry)||entry<=0)                return showErr(out,'Enter a valid entry price.');
+  if (isNaN(sl)||sl<=0)                     return showErr(out,'Enter a valid stop loss price.');
+  if (isNaN(tp)||tp<=0)                     return showErr(out,'Enter a valid take profit price.');
+  if (isNaN(bal)||bal<=0)                   return showErr(out,'Enter a valid account balance.');
+  if (isNaN(targetProfit)||targetProfit<=0) return showErr(out,'Enter a valid target profit.');
+  if (isNaN(maxLoss)||maxLoss<=0)           return showErr(out,'Enter a valid max loss amount.');
+  if (maxLoss>bal)                           return showErr(out,'Max loss cannot exceed your account balance.');
+
+  if (dir2==='buy'  && sl>=entry) return showErr(out,'BUY: Stop Loss must be below entry price.');
+  if (dir2==='sell' && sl<=entry) return showErr(out,'SELL: Stop Loss must be above entry price.');
+  if (dir2==='buy'  && tp<=entry) return showErr(out,'BUY: Take Profit must be above entry price.');
+  if (dir2==='sell' && tp>=entry) return showErr(out,'SELL: Take Profit must be below entry price.');
+
+  const pipVal  = getPipValuePerLot(inst, entry);
+  const slPips  = roundPips(Math.abs(entry - sl) / inst.pip);
+  const tpPips  = roundPips(Math.abs(tp - entry) / inst.pip);
+  const isLive  = ratesStatus === 'live';
+  const isCross = !inst.usdBase && inst.quote && inst.quote !== 'USD' && inst.pipValue === undefined;
+
+  if (slPips===0) return showErr(out,'SL cannot equal entry price.');
+  if (tpPips===0) return showErr(out,'TP cannot equal entry price.');
+  if (pipVal<=0)  return showErr(out,'Could not compute pip value. Check entry price.');
+
+  const lotForProfit = targetProfit / (tpPips * pipVal);
+  const lotForLoss   = maxLoss      / (slPips * pipVal);
+  const rawLot       = Math.min(lotForProfit, lotForLoss);
+  const stdLot       = brokerLot(rawLot);
+  const actProfit    = tpPips * pipVal * stdLot;
+  const actLoss      = slPips * pipVal * stdLot;
+  const rr           = tpPips / slPips;
+  const riskPct      = (actLoss / bal) * 100;
+  const limiting     = lotForLoss < lotForProfit ? 'Max Loss Limit' : 'Profit Target';
+  const unit         = inst.unit || 'pips';
+
+  out.innerHTML = `
+    <div class="result-row">
+      <span class="result-label">Lot Size (Exact)</span>
+      <span class="result-value accent">${fmtLot(rawLot)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Broker Lot (Round ▼)</span>
+      <span class="result-value" style="color:var(--blue)">${stdLot.toFixed(2)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Limiting Factor</span>
+      <span class="result-value" style="font-size:13px;color:var(--blue)">${limiting}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Potential Profit</span>
+      <span class="result-value green">+$${actProfit.toFixed(2)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Actual Max Loss</span>
+      <span class="result-value red">−$${actLoss.toFixed(2)}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">% Balance at Risk</span>
+      <span class="result-value">${riskPct.toFixed(2)}%</span>
+    </div>
+    <div class="rr-bar-wrap">
+      <div class="rr-label">Risk / Reward Ratio</div>
+      <div class="rr-bar">
+        <div class="rr-loss"   style="width:${100/(1+rr)}%"></div>
+        <div class="rr-profit" style="width:${100-100/(1+rr)}%"></div>
+      </div>
+      <div class="rr-ratio">1 : ${rr.toFixed(2)}</div>
+    </div>
+    <div class="result-row" style="margin-top:8px">
+      <span class="result-label">SL / TP Distance</span>
+      <span class="result-value">${slPips.toFixed(1)} / ${tpPips.toFixed(1)} ${unit}</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Pip Value / Lot</span>
+      <span class="result-value">$${pipVal.toFixed(4)}${isCross ? ` <span style="font-size:10px;color:${isLive?'var(--green)':'var(--accent)'}">${isLive?'● live':'● est.'}</span>` : ''}</span>
+    </div>
+  `;
+}
+</script>
+
+</body>
+</html>
